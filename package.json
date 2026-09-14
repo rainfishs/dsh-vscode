@@ -1,8 +1,8 @@
 {
   "name": "dsh-on-vscode",
   "displayName": "DSH on VS Code",
-  "description": "Open a URL as a tab in the VS Code chat panel. The URL comes from a text file, so you can point the tab at DeepSeek Harness (DSH) or any local web app.",
-  "version": "0.0.11",
+  "description": "Seamless, low-overhead DeepSeek Harness (DSH) integration for VS Code with bidirectional IPC, native file navigation, and isolated storage.",
+  "version": "0.0.12",
   "publisher": "rainfishs",
   "author": {
     "name": "rainfishs",
@@ -97,7 +97,7 @@
         "dsh.urlFile": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Path to the text file that holds the URL. The first usable line is taken as the URL (only http / https; lines starting with # are ignored). It can be an absolute path, a workspace-relative path, or start with `~`. The tab reloads automatically whenever the file changes."
+          "markdownDescription": "Path to the text file that holds the URL. The first usable line is taken as the URL (only http / https; lines starting with # are ignored). It can be an absolute path, a workspace-relative path, or start with `~`. Leave it empty to use the file DSH itself writes, `%DSH_HOME%\\profiles\\web\\web-url.txt` (`%USERPROFILE%\\.dsh\\profiles\\web\\web-url.txt` when `DSH_HOME` is unset). The tab reloads automatically whenever the file changes."
         },
         "dsh.zoom": {
           "type": "number",

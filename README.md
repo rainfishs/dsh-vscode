@@ -1,179 +1,155 @@
 <div align="center">
 
-<img src="icon.png" alt="DSH" width="120" height="120">
+<img src="icon.png" alt="DSH on VS Code" width="100" height="100">
 
-# DSH
+# DSH on VS Code
 
-**A live URL tab inside the VS Code chat panel.**
-Point it at [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — or any local web app — with a single text file.
+### Seamless, low-overhead DeepSeek Harness (DSH) integration for VS Code
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.104-007ACC.svg)](https://code.visualstudio.com/)
-[![Status: early preview](https://img.shields.io/badge/status-early%20preview-orange.svg)](#status)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/rainfishs.dsh-on-vscode?style=flat-square&label=Marketplace&logo=visualstudiocode&logoColor=007ACC)](https://marketplace.visualstudio.com/items?itemName=rainfishs.dsh-on-vscode)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![VS Code Engine](https://img.shields.io/badge/VS%20Code-%5E1.104.0-007ACC.svg?style=flat-square&logo=visualstudiocode)](https://code.visualstudio.com/)
+[![Built for DSH](https://img.shields.io/badge/Integration-DeepSeek%20Harness-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
 **English** | [繁體中文](README.zh-TW.md)
 
 </div>
 
-> [!NOTE]
-> DSH is an independent community project. It is not affiliated with, endorsed by, or published by DeepSeek.
+---
 
-<!--
-Demo image: drop a screenshot at docs/screenshots/sidebar.png and uncomment the line below.
-<p align="center"><img src="docs/screenshots/sidebar.png" alt="The DSH tab next to the VS Code chat panel" width="720"></p>
--->
+**DSH on VS Code** brings the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) web interface directly into your editor's chat panel.
 
-## Why
+Built with a **lightweight, decoupled architecture**, it avoids process locking and fragile stdout scraping, providing a clean bidirectional bridge between DSH and your VS Code workspace.
 
-DeepSeek Harness ships a browser UI (`dsh web`, normally on `http://127.0.0.1:3080`). DSH puts that page — or any other URL — where you are already working: in a tab of the VS Code **chat panel**, next to Copilot Chat and Claude.
+---
 
-The URL lives in a plain text file. Switching endpoints is editing one line — no settings sync, no hardcoded port, no side-by-side terminal.
+## ⚡ Architecture Overview
 
-## Features
+Instead of rigid sub-process binding or fragile stdout scraping, DSH on VS Code uses a **Rendezvous File Pattern** with a high-performance **Two-Hop IPC Bridge**:
 
-- **Chat-panel tab.** Registers a webview view in the `secondarySidebar` container, and additionally attempts the built-in chat panel container (`workbench.panel.chat`). Where the running VS Code build blocks third-party views in that container, the sidebar view is the primary surface and the attempt is logged as a warning only.
-- **URL from a file.** `dsh.urlFile` points at a text file; the first line starting with `http`/`https` wins. Blank lines and `#` comments are skipped, BOM and surrounding `<`/`"`/`'` are stripped. Edit the file and the tab reloads on its own.
-- **Live zoom.** `dsh.zoom` (0.25–4) rescales the embedded page. It is applied through `postMessage`, so the page does not reload.
-- **Per-window storage isolation.** Each VS Code window loads loopback URLs through its own proxy origin, so `localStorage` inside the page no longer collides between windows.
-- **Clipboard bridge.** Copy buttons inside the embedded page reach the real system clipboard through a two-hop `postMessage` bridge. Requires [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) — see [How it works](#how-it-works).
-- **Fails soft.** If the proxy cannot start, the tab quietly falls back to loading the original URL. Everything is reported in the **DSH** output channel.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        VS Code Host                         │
+│  ┌───────────────────────┐       ┌───────────────────────┐  │
+│  │   Secondary Sidebar   │       │  Loopback Proxy Core  │  │
+│  │  (Webview Container)  │       │ (Per-Window Isolation)│  │
+│  └───────────▲───────────┘       └───────────▲───────────┘  │
+│              │ (postMessage IPC)             │              │
+└──────────────┼───────────────────────────────┼──────────────┘
+               │                               │
+       [ Two-Hop Bridge ]            [ HTTP / WebSocket ]
+       • System Clipboard Sync                 │
+       • Native File Jump (Range)              │
+               │                               ▼
+┌──────────────▼──────────────────────────────────────────────┐
+│                    DSH Runtime & Web GUI                    │
+│    (Atomic Rendezvous URL File + SameSite Cookie Widening)   │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Requirements
+---
 
-| Requirement | Why you need it |
-|---|---|
-| VS Code 1.104.0+ | The extension and the webview APIs it uses. |
-| DeepSeek Harness | The web UI this tab embeds. Install with `npm install -g @deepseek-ai/dsh`, then run `dsh web`. |
-| [dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge) | A DSH plugin. It writes the Web GUI's authenticated URL to a file for `dsh.urlFile` to read, and relays clipboard writes from the page to VS Code — which is what makes the copy buttons work. |
-| Node.js 18+ | Only to build from source or run the tests. |
+## ✨ Key Features
 
-## Install
+* 🚀 **Zero-Lag Native Workspace**: Mounts directly into the Secondary Sidebar or alongside the Chat Panel without breaking your layout.
+* 📁 **Native Editor Hand-off**: Clicking files or stack traces inside DSH opens the exact file and line in your active VS Code editor instantly.
+* 📋 **Two-Hop Clipboard Bridge**: Overcomes Chromium iframe permission sandboxing to give DSH full, reliable access to the OS clipboard.
+* 🛡️ **Per-Window Storage Isolation**: Dedicated per-window loopback proxy origin prevents `localStorage` and session collisions across multi-root workspaces.
+* 🔄 **Rendezvous Auto-Reload**: Watches the authenticated URL handshake file; starts and reconnects automatically without manual configuration.
+* 🔍 **Live Zoom Scaling**: Hardware-accelerated CSS viewport scaling (0.25x – 4.0x) without reloading the iframe state or dropping active WebSockets.
 
-### 1. Install the DSH plugin
+---
 
-[`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) is a DSH profile bundle that bridges the Web GUI and VS Code: it writes the GUI's authenticated login URL to a text file, and relays clipboard writes from the page to the extension host.
+## 📦 Prerequisites
 
-```powershell
+| Component | Required Version | Role |
+| :--- | :--- | :--- |
+| **VS Code** | `^1.104.0` | Host Editor |
+| **DeepSeek Harness** | `latest` (`@deepseek-ai/dsh`) | AI Harness Core |
+| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `latest` | DSH Cordis Runtime Bundle |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Install the DSH Runtime Bundle
+Add the bridge bundle to your DSH web profile:
+```bash
 dsh plugin --profile web add github:rainfishs/dsh-vscode-bridge
 ```
 
-Its own [README](https://github.com/rainfishs/dsh-vscode-bridge) covers the configuration (`openFileIn`, where the URL file goes, and so on).
-
-### 2. Install this extension
-
-#### From the VS Code Marketplace
-
-Search for **DSH** in the Extensions view, or from a terminal:
-
-```powershell
+### 2. Install the VS Code Extension
+Install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rainfishs.dsh-on-vscode) or via command line:
+```bash
 code --install-extension rainfishs.dsh-on-vscode
 ```
 
-> The listing goes live with the first Marketplace release of `0.0.10`.
-
-#### From a VSIX
-
-Download the newest `.vsix` from [Releases](https://github.com/rainfishs/dsh-vscode/releases), then use **Extensions ▸ … ▸ Install from VSIX…** in VS Code.
-
-#### From source
-
-```powershell
-git clone https://github.com/rainfishs/dsh-vscode.git
-cd dsh-vscode
-pnpm install
-pnpm package        # produces dsh-on-vscode-0.0.10.vsix
-```
-
-## Quick start
-
-1. Start the Web GUI (`dsh web`). With `dsh-vscode-bridge` installed, the authenticated URL is written for you to `web-url.txt` in the Web profile directory — `%DSH_HOME%\profiles\web\web-url.txt`, or `%USERPROFILE%\.dsh\profiles\web\web-url.txt` when `DSH_HOME` is unset. Any other text file holding a single URL works just as well:
-
+### 3. Launch & Connect
+1. Start DeepSeek Harness:
+   ```bash
+   dsh web
+   ```
+   *(The bridge automatically writes the authenticated session URL to `%USERPROFILE%\.dsh\profiles\web\web-url.txt`)*
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run:
    ```text
-   # the DSH web UI, or anything else
-   http://127.0.0.1:3080
+   DSH: Open URL Tab
    ```
 
-2. Open Settings (`Ctrl+,`), search for `dsh.urlFile`, and fill in the path to that file. Absolute paths, workspace-relative paths and `~/…` all work.
-3. Open the chat panel (`Ctrl+Shift+I`) and select the **URL** tab — or run **DSH: Open URL Tab** from the Command Palette.
+---
 
-The tab reloads whenever the text file changes.
+## ⚙️ Configuration
 
-## Settings
+Customize the integration via `Settings` (`Ctrl+,`) under the `dsh` namespace:
 
 | Setting | Type | Default | Description |
-|---|---|---|---|
-| `dsh.urlFile` | `string` | `""` | Path to the text file holding the URL. Absolute, workspace-relative, or `~`-prefixed. |
-| `dsh.zoom` | `number` | `1` | Scale factor for the embedded page, clamped to `0.25`–`4`. Applied live. |
-| `dsh.isolateStorage` | `boolean` | `true` | Load loopback `http` URLs through a per-window proxy origin so `localStorage` is isolated per window. Only `127.0.0.0/8`, `localhost` and `::1` are proxied. |
+| :--- | :---: | :---: | :--- |
+| `dsh.urlFile` | `string` | `""` | Path to the rendezvous URL file. Supports absolute paths, workspace-relative paths, and `~` home expansions. Empty means the file DSH itself writes: `%DSH_HOME%\profiles\web\web-url.txt`, or `%USERPROFILE%\.dsh\profiles\web\web-url.txt` when `DSH_HOME` is unset. |
+| `dsh.zoom` | `number` | `1.0` | Real-time viewport zoom factor (`0.25` to `4.0`). Applied without reloading. |
+| `dsh.isolateStorage` | `boolean` | `true` | Enables per-window loopback proxy to isolate `localStorage` between multiple VS Code windows. |
 
-## Commands
+---
 
-| Command | Title |
-|---|---|
-| `dsh.open` | DSH: Open URL Tab |
-| `dsh.reload` | DSH: Reload |
-| `dsh.openSettings` | DSH: Open Settings (URL File) |
+## 🔧 Under the Hood
 
-## How it works
+### 1. Two-Hop Bidirectional IPC
+VS Code Webviews impose strict cross-origin iframe security boundaries. 
+* **Clipboard Relay**: `dsh-vscode-bridge` hooks `navigator.clipboard.writeText` within the iframe and bubbles payloads upwards via `postMessage`. The extension host relays and writes them using native `vscode.env.clipboard.writeText`.
+* **File Navigation**: File links (`dsh-resource://file/...`) are intercepted and sent directly to the extension host, opening the target file in `vscode.window.showTextDocument` with the exact line in focus.
 
-**The tab.** The extension registers the same webview view provider twice: once in the `secondarySidebar` container (always available) and once in `workbench.panel.chat` (the built-in chat panel, which newer VS Code builds may refuse for third-party views). The page itself is an `<iframe>` with the CSP used by VS Code's own Simple Browser (`frame-src *`), nested in a CSS zoom wrapper.
+### 2. Deterministic Port Proxy & Storage Isolation
+Chromium shares `localStorage` across all windows accessing the same origin (`http://127.0.0.1:3080`). DSH on VS Code runs a lightweight in-memory reverse proxy per window. The port is deterministically hashed from the active workspace path, ensuring independent storage scopes while preserving session persistence across reloads.
 
-**The clipboard bridge.** A webview cannot hand clipboard permissions down to a nested cross-origin iframe, so the parent document cannot write to the clipboard on the page's behalf. Instead:
+---
 
-1. the embedded page (with [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) installed) hooks `navigator.clipboard.writeText` and `postMessage`s `{ type: "copy", text }` to its parent frame;
-2. the middle layer — the `<script>` in the generated webview HTML — forwards it through `acquireVsCodeApi()`;
-3. the extension host receives it in `webview.onDidReceiveMessage` and calls `vscode.env.clipboard.writeText`.
+## 🛠️ Diagnostics & Troubleshooting
 
-The write happens in the extension host, so no iframe permission is involved. Background: [microsoft/vscode#182642](https://github.com/microsoft/vscode/issues/182642).
+All runtime decisions, proxy lifecycle events, and IPC relays are logged to the **DSH Output Channel**:
+1. Open **View ▸ Output** (`Ctrl+K Ctrl+H`).
+2. Select **DSH** from the dropdown.
 
-**Per-window storage isolation.** An iframe's storage is scoped to its origin, and every VS Code window shares one Electron session — so two windows loading `http://127.0.0.1:3080` share one `localStorage`. `src/proxy.ts` starts a loopback reverse proxy per window and loads the page from `http://127.0.0.1:<per-window port>` instead. The port is derived from a hash of the workspace folder (or the session id), so reopening the same folder lands on the same origin and the page keeps its state.
+| Symptom | Cause | Solution |
+| :--- | :--- | :--- |
+| `No URL configured` | The default DSH URL file is not there yet | Start `dsh web` with the bridge bundle, or set `dsh.urlFile` in Settings |
+| `Cannot read that file` | File path invalid or permission denied | Verify file permissions and path syntax |
+| Copy button has no effect | `dsh-vscode-bridge` missing in DSH | Run `dsh plugin --profile web add github:rainfishs/dsh-vscode-bridge` |
+| Multiple windows share session | `dsh.isolateStorage` disabled | Ensure `dsh.isolateStorage: true` in settings |
 
-Requests are forwarded with `Host`, `Origin` and `Referer` rewritten back to the upstream authority, so the target's own origin checks (including DSH's `isTrustedApiRequest` fence and its host-only `dsh-auth-*` cookie) see no difference. `Location` headers are rewritten back to the proxy origin, and WebSocket upgrades are forwarded with the same header rewrite. The proxy binds `127.0.0.1` only, and only `http` loopback targets are proxied.
+---
 
-## Troubleshooting
+## 🔒 Security & Privacy
 
-Open the **DSH** output channel (View ▸ Output ▸ DSH) first — every decision the extension makes is logged there.
+* **100% Localhost Bound**: The reverse proxy and all rendezvous mechanisms bind strictly to `127.0.0.1`.
+* **Zero Telemetry**: No tracking, metrics, or third-party network requests.
+* **Origin Defense**: Upstream `Origin`, `Host`, and `Referer` headers are sanitized to respect DSH's internal security fences.
 
-| Symptom | What to check |
-|---|---|
-| Tab says "No URL configured" | `dsh.urlFile` is empty. The tab renders a button that opens the setting directly. |
-| Tab says "Cannot read that file" | The path does not resolve, or the file is unreadable. Absolute paths are safest. |
-| Tab says "No usable URL in that file" | No line starts with `http://` or `https://`. `#` comment lines are ignored. |
-| No **URL** tab in the chat panel | Newer VS Code builds reject third-party views in `workbench.panel.chat`. Use the DSH view in the secondary sidebar (it may be under **Other Views**). |
-| Page renders but copy buttons do nothing | `dsh-vscode-bridge` is not installed in the DSH profile, or it does not emit the `{ type: "copy" }` message. Check the output channel for `[Clipboard]` lines. |
-| Two windows overwrite each other's state | Confirm `dsh.isolateStorage` is on. The output channel prints the proxy origin it picked, e.g. `[Proxy] 127.0.0.1:3080 → http://127.0.0.1:43123`. |
-| State looks reset after upgrading to 0.0.10 | Expected once: the page moved to a new origin, so the old `localStorage` under `http://127.0.0.1:3080` is not visible any more. |
+---
 
-## Development
+## 📄 License
 
-```powershell
-pnpm install
-pnpm bundle     # esbuild → dist/extension.js
-pnpm compile    # tsc --noEmit
-pnpm lint       # eslint src
-pnpm test       # bundles src/proxy.ts and runs node --test
-pnpm check      # compile + lint + test
-pnpm package    # → .vsix
-```
+Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
-Dependencies are bundled into `dist/extension.js` by esbuild, which is why packaging uses `--no-dependencies` and the VSIX needs no `node_modules`.
+---
 
-Press `F5` in VS Code to start an Extension Development Host (`.vscode/launch.json` bundles first).
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow.
-
-## Status
-
-Early preview. The extension is small on purpose: it embeds one URL and stays out of the way. Interfaces may still change between `0.0.x` releases; see [CHANGELOG.md](CHANGELOG.md).
-
-## Privacy
-
-DSH does not collect telemetry and makes no network requests of its own. It reads the file you point it at and loads the URL found there. The loopback proxy listens on `127.0.0.1` only and forwards to the loopback target you configured; it can be switched off with `dsh.isolateStorage: false`.
-
-## License
-
-[MIT](LICENSE).
-
-## Acknowledgements
-
-- The clipboard bridge exists because VS Code does not forward clipboard permissions into nested cross-origin iframes ([microsoft/vscode#182642](https://github.com/microsoft/vscode/issues/182642)).
+<div align="center">
+<sub>Built with precision by <a href="https://github.com/rainfishs">rainfishs</a>. Not officially affiliated with DeepSeek.</sub>
+</div>

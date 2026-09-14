@@ -1,179 +1,152 @@
 <div align="center">
 
-<img src="icon.png" alt="DSH" width="120" height="120">
+<img src="icon.png" alt="DSH on VS Code" width="100" height="100">
 
-# DSH
+# DSH on VS Code
 
-**把一個網頁直接開在 VS Code 聊天面板裡的分頁。**
-用一個文字檔指定網址，指向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 或任何本機網頁應用。
+### 為 VS Code 打造的輕量、無縫 DeepSeek Harness (DSH) 工作區整合方案
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.104-007ACC.svg)](https://code.visualstudio.com/)
-[![Status: early preview](https://img.shields.io/badge/status-early%20preview-orange.svg)](#狀態)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/rainfishs.dsh-on-vscode?style=flat-square&label=Marketplace&logo=visualstudiocode&logoColor=007ACC)](https://marketplace.visualstudio.com/items?itemName=rainfishs.dsh-on-vscode)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![VS Code Engine](https://img.shields.io/badge/VS%20Code-%5E1.104.0-007ACC.svg?style=flat-square&logo=visualstudiocode)](https://code.visualstudio.com/)
+[![Built for DSH](https://img.shields.io/badge/Integration-DeepSeek%20Harness-4D6BFE?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.md) | **繁體中文**
 
 </div>
 
-> [!NOTE]
-> DSH 是獨立的社群專案，與 DeepSeek 官方無隸屬關係，也未經其背書或發行。
+---
 
-<!--
-展示圖：把截圖放到 docs/screenshots/sidebar.png，再把下面那行註解打開。
-<p align="center"><img src="docs/screenshots/sidebar.png" alt="DSH 分頁與 VS Code 聊天面板並排" width="720"></p>
--->
+**DSH on VS Code** 將 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 的 Web 介面無縫嵌入至 VS Code 聊天面板。
 
-## 為什麼要做這個
+專案採用**輕量解耦架構**：不鎖死外部進程、不依賴 stdout 輸出爬取，透過雙向 IPC 解決 Webview 沙盒限制，讓 DSH 順暢融入你的日常開發流程。
 
-DeepSeek Harness 本身有瀏覽器介面（`dsh web`，通常跑在 `http://127.0.0.1:3080`）。DSH 把那個頁面——或任何其他網址——放到你本來就在工作的地方：VS Code **聊天面板**裡的一個分頁，和 Copilot Chat、Claude 並排。
+---
 
-網址放在一個純文字檔裡，換端點就是改一行字。不用同步設定、不用寫死連接埠、也不用另外開一個終端機視窗。
+## ⚡ 架構總覽
 
-## 功能
+捨棄傳統的子進程綁定（Process Spawning），DSH on VS Code 採用簡潔的**會合檔案模式（Rendezvous File Pattern）**搭配**兩段式 IPC 橋接（Two-Hop IPC Bridge）**：
 
-- **聊天面板分頁。** 在 `secondarySidebar` 容器註冊 webview 檢視，另外嘗試掛進內建的聊天面板容器（`workbench.panel.chat`）。若當前的 VS Code 版本擋掉第三方檢視，側邊欄那個就是主要入口，嘗試失敗只會在 log 留一行 warning。
-- **網址來自文字檔。** `dsh.urlFile` 指向一個文字檔，第一個 `http`/`https` 開頭的行即為網址。空行與 `#` 註解會略過，BOM 與外層的 `<`/`"`/`'` 會清掉。檔案一改動，分頁自動重新載入。
-- **即時縮放。** `dsh.zoom`（0.25–4）縮放嵌入的頁面，用 `postMessage` 套用，不會重新載入。
-- **各視窗獨立 storage。** 每個 VS Code 視窗用自己的代理 origin 載入 loopback 網址，頁面裡的 `localStorage` 不再互相蓋掉。
-- **剪貼簿橋接。** 嵌入頁面裡的複製鈕，透過兩層 `postMessage` 橋接寫進真正的系統剪貼簿。需要 [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge)，詳見[運作原理](#運作原理)。
-- **壞掉也不會爛掉。** 代理起不來時，分頁自動退回直接載入原網址。所有判斷都記在 Output 的 **DSH** 頻道。
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        VS Code Host                         │
+│  ┌───────────────────────┐       ┌───────────────────────┐  │
+│  │   Secondary Sidebar   │       │  Loopback Proxy Core  │  │
+│  │  (Webview Container)  │       │ (Per-Window Isolation)│  │
+│  └───────────▲───────────┘       └───────────▲───────────┘  │
+│              │ (postMessage IPC)             │              │
+└──────────────┼───────────────────────────────┼──────────────┘
+               │                               │
+       [ Two-Hop Bridge ]            [ HTTP / WebSocket ]
+       • System Clipboard Sync                 │
+       • Native File Jump (Range)              │
+               │                               ▼
+┌──────────────▼──────────────────────────────────────────────┐
+│                    DSH Runtime & Web GUI                    │
+│    (Atomic Rendezvous URL File + SameSite Cookie Widening)   │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## 需求
+---
 
-| 需要什麼 | 為什麼 |
-|---|---|
-| VS Code 1.104.0 以上 | 這個擴充用到的 webview API。 |
-| DeepSeek Harness | 分頁要嵌入的網頁介面。`npm install -g @deepseek-ai/dsh`，再跑 `dsh web`。 |
-| [dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge) | DSH plugin。它會把 Web GUI 的登入 URL 寫成檔案給 `dsh.urlFile` 讀，並把網頁的剪貼簿寫入轉送給 VS Code——複製鈕才會動。 |
-| Node.js 18 以上 | 只有從原始碼建置或跑測試時需要。 |
+## ✨ 核心功能
 
-## 安裝
+* 🚀 **原生工作區整合**：直接掛載至次要側邊欄或聊天面板分頁，不干擾編輯器現有排版。
+* 📁 **編輯器原生跳轉**：在 DSH 內點擊檔案或錯誤堆疊（Stack Trace），立即於 VS Code 編輯器開啟檔案並跳至對應行號。
+* 📋 **兩段式剪貼簿橋接**：繞過 Chromium Iframe 沙盒限制，讓 DSH 的複製功能直接寫入系統剪貼簿。
+* 🛡️ **多視窗儲存隔離**：透過本機反向代理 Origin，避免多個 VS Code 視窗共用與覆寫 `localStorage`。
+* 🔄 **會合檔案自動重載**：監聽登入 URL 檔案，DSH 啟動後自動同步載入，無須手動配置 Port。
+* 🔍 **即時視圖縮放**：支援 CSS 縮放（0.25× 至 4.0×），調整比例時不重載頁面、不中斷進行中的對話與 WebSocket。
 
-### 1. 先裝 DSH plugin
+---
 
-[`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) 是 DSH 的 profile bundle，負責在 Web GUI 和 VS Code 之間搭橋：把 GUI 的登入 URL 寫成文字檔，並把網頁的剪貼簿寫入轉送給 extension host。
+## 📦 環境需求
 
-```powershell
+| 元件 | 支援版本 | 說明 |
+| :--- | :--- | :--- |
+| **VS Code** | `^1.104.0` | 宿主編輯器 |
+| **DeepSeek Harness** | `latest`（`@deepseek-ai/dsh`） | DSH 核心套件 |
+| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `latest` | DSH 端 Cordis 執行期外掛 |
+
+---
+
+## 🚀 快速開始
+
+### 1. 安裝 DSH 擴充套件
+將 Bridge Bundle 加入 DSH 的 Web Profile：
+```bash
 dsh plugin --profile web add github:rainfishs/dsh-vscode-bridge
 ```
 
-設定（`openFileIn`、URL 檔要放哪…）看它自己的 [README](https://github.com/rainfishs/dsh-vscode-bridge)。
-
-### 2. 再裝這個擴充
-
-#### 從 VS Code 商店
-
-在擴充功能面板搜尋 **DSH**，或從終端機：
-
-```powershell
+### 2. 安裝 VS Code 擴充套件
+從 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rainfishs.dsh-on-vscode) 安裝，或在終端機執行：
+```bash
 code --install-extension rainfishs.dsh-on-vscode
 ```
 
-> 商店頁面會隨第一個 `0.0.10` 發行版上線。
-
-#### 從 VSIX 安裝
-
-到 [Releases](https://github.com/rainfishs/dsh-vscode/releases) 下載最新的 `.vsix`，在 VS Code 用 **擴充功能 ▸ … ▸ 從 VSIX 安裝…**。
-
-#### 從原始碼建置
-
-```powershell
-git clone https://github.com/rainfishs/dsh-vscode.git
-cd dsh-vscode
-pnpm install
-pnpm package        # 產生 dsh-on-vscode-0.0.10.vsix
-```
-
-## 快速開始
-
-1. 啟動 Web GUI（`dsh web`）。裝了 `dsh-vscode-bridge` 的話，登入 URL 會自動寫進 Web profile 目錄的 `web-url.txt`——`%DSH_HOME%\profiles\web\web-url.txt`，沒設 `DSH_HOME` 時是 `%USERPROFILE%\.dsh\profiles\web\web-url.txt`。任何放著一行網址的文字檔也一樣可以用：
-
+### 3. 啟動與連線
+1. 啟動 DeepSeek Harness：
+   ```bash
+   dsh web
+   ```
+   *（Bridge 會自動將登入 URL 寫入 `%USERPROFILE%\.dsh\profiles\web\web-url.txt`）*
+2. 在 VS Code 中按下 `Ctrl+Shift+P`（macOS 為 `Cmd+Shift+P`）開啟命令面板，執行：
    ```text
-   # DSH 的網頁介面，或任何其他網址
-   http://127.0.0.1:3080
+   DSH: Open URL Tab
    ```
 
-2. 打開設定（`Ctrl+,`），搜尋 `dsh.urlFile`，填入那個檔案的路徑。絕對路徑、相對於工作區的路徑、`~/…` 都可以。
-3. 打開聊天面板（`Ctrl+Shift+I`），選 **URL** 分頁；或從命令面板執行 **DSH: Open URL Tab**。
+---
 
-文字檔一有改動，分頁就會重新載入。
+## ⚙️ 設定選項
 
-## 設定
+在 VS Code `Settings`（`Ctrl+,`）搜尋 `dsh` 可進行調整：
 
-| 設定 | 型別 | 預設 | 說明 |
-|---|---|---|---|
-| `dsh.urlFile` | `string` | `""` | 裝著網址的文字檔路徑。可填絕對路徑、相對於工作區的路徑，或 `~` 開頭。 |
-| `dsh.zoom` | `number` | `1` | 嵌入頁面的縮放倍率，會被夾在 `0.25`–`4`。改動即時套用。 |
-| `dsh.isolateStorage` | `boolean` | `true` | 讓 loopback 的 `http` 網址走各視窗專屬的代理 origin，把 `localStorage` 依視窗隔離。只有 `127.0.0.0/8`、`localhost`、`::1` 會被代理。 |
+| 設定項目 | 型別 | 預設值 | 說明 |
+| :--- | :---: | :---: | :--- |
+| `dsh.urlFile` | `string` | `""` | 會合 URL 檔案路徑。支援絕對路徑、工作區相對路徑或 `~`。留空時預設讀取 `%USERPROFILE%\.dsh\profiles\web\web-url.txt`。 |
+| `dsh.zoom` | `number` | `1.0` | 視圖縮放比例（`0.25` 至 `4.0`），即時套用不重載分頁。 |
+| `dsh.isolateStorage` | `boolean` | `true` | 啟用多視窗本機代理，隔離各視窗的 `localStorage`。 |
 
-## 命令
+---
 
-| 命令 | 標題 |
-|---|---|
-| `dsh.open` | DSH: Open URL Tab |
-| `dsh.reload` | DSH: Reload |
-| `dsh.openSettings` | DSH: Open Settings (URL File) |
+## 🔧 運作原理
 
-## 運作原理
+### 1. 兩段式雙向 IPC（Two-Hop Bidirectional IPC）
+* **剪貼簿轉送**：`dsh-vscode-bridge` 攔截 Iframe 內的 `writeText` 並透過 `postMessage` 往上傳遞，VS Code Extension Host 接收後使用原生 API 寫入系統剪貼簿。
+* **檔案點擊導航**：點擊檔案連結（`dsh-resource://file/...`）直接透過 IPC 轉送至 Extension Host，以 `vscode.window.showTextDocument` 開啟並跳轉至指定行號。
 
-**分頁怎麼來的。** 同一個 webview provider 註冊兩次：一次在 `secondarySidebar` 容器（一定有），一次在 `workbench.panel.chat`（內建聊天面板，新版 VS Code 可能拒絕第三方檢視）。頁面本身是一個 `<iframe>`，CSP 寫法照抄 VS Code 內建的 Simple Browser（`frame-src *`），外層再用 CSS 做縮放。
+### 2. 動態埠號代理與 Storage 隔離
+為了解決多視窗共享同一個 Origin 時 `localStorage` 互相踩踏的問題，擴充套件會依據工作區路徑雜湊出專屬 Port 啟動輕量本機反向代理，達成各視窗獨立儲存空間。
 
-**剪貼簿橋接。** webview 沒辦法把剪貼簿權限往下轉授給第二層的跨來源 iframe，所以父層文件無法代它寫入剪貼簿。改走這條路：
+---
 
-1. 被嵌入的頁面（裝了 [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge)）在 `navigator.clipboard.writeText` 掛鉤，主動 `postMessage` `{ type: "copy", text }` 給父層；
-2. 中間層——產生出來的 webview HTML 裡的 `<script>`——用 `acquireVsCodeApi()` 轉發；
-3. extension host 在 `webview.onDidReceiveMessage` 收到後呼叫 `vscode.env.clipboard.writeText`。
+## 🛠️ 疑難排解
 
-寫入發生在 extension host，不需要 iframe 的任何權限。背景：[microsoft/vscode#182642](https://github.com/microsoft/vscode/issues/182642)。
+所有執行狀態與 IPC 紀錄皆輸出於 **DSH 輸出頻道**（檢視 ▸ 輸出 ▸ 選擇 **DSH**）：
 
-**各視窗獨立的 storage。** iframe 的 storage 只看 origin，而 VS Code 所有視窗共用同一個 Electron session——兩個視窗都載入 `http://127.0.0.1:3080` 就是共用同一份 `localStorage`。`src/proxy.ts` 為每個視窗開一個 loopback 反向代理，改從 `http://127.0.0.1:<該視窗的埠>` 載入。埠由工作區路徑（沒有資料夾時用 session id）的 hash 推導，所以重開同一個資料夾會落回同一個 origin，頁面狀態不會消失。
+| 狀況 | 原因 | 處理方式 |
+| :--- | :--- | :--- |
+| `No URL configured` | 尚未生成 URL 檔案 | 啟動安裝了 Bridge 的 `dsh web`，或在設定指定 `dsh.urlFile`。 |
+| `Cannot read that file` | 路徑錯誤或無讀取權限 | 檢查檔案路徑與權限設定。 |
+| 點擊複製無反應 | DSH 端未安裝 Bridge | 執行 `dsh plugin --profile web add github:rainfishs/dsh-vscode-bridge`。 |
+| 多視窗狀態互相覆蓋 | 儲存隔離被關閉 | 確認設定中的 `dsh.isolateStorage` 為 `true`。 |
 
-轉發時把 `Host`、`Origin`、`Referer` 改寫回上游 authority，因此目標自己的來源檢查（包含 DSH 的 `isTrustedApiRequest` fence 與 host-only 的 `dsh-auth-*` cookie）看不出差別；回應的 `Location` 會改寫回代理 origin；WebSocket 升級也帶著同樣的改寫轉發。代理只綁 `127.0.0.1`，而且只代理 `http` 的 loopback 目標。
+---
 
-## 疑難排解
+## 🔒 安全性與隱私
 
-先開 Output 的 **DSH** 頻道（檢視 ▸ 輸出 ▸ DSH），擴充的每個判斷都寫在那裡。
+* **純本機執行**：反向代理與通訊機制僅綁定 `127.0.0.1`。
+* **零遙測收集**：不收集任何使用者資訊，無第三方外部網路請求。
+* **標頭校正**：轉發請求時會重寫 `Origin` 與 `Host` 標頭，符合 DSH 本地的安全檢查。
 
-| 症狀 | 先檢查什麼 |
-|---|---|
-| 分頁顯示 “No URL configured” | `dsh.urlFile` 是空的。那個頁面上有按鈕可以直接打開設定。 |
-| 分頁顯示 “Cannot read that file” | 路徑解析不到，或檔案讀不到。用絕對路徑最保險。 |
-| 分頁顯示 “No usable URL in that file” | 沒有以 `http://` 或 `https://` 開頭的行。`#` 開頭的行會被忽略。 |
-| 聊天面板裡沒有 **URL** 分頁 | 新版 VS Code 會拒絕第三方檢視掛進 `workbench.panel.chat`。請用次要側邊欄的 DSH 檢視（可能收在 **其他檢視** 底下）。 |
-| 頁面正常但複製鈕沒反應 | DSH profile 裡沒裝 `dsh-vscode-bridge`，或它沒有送出 `{ type: "copy" }`。看輸出頻道有沒有 `[Clipboard]` 開頭的行。 |
-| 兩個視窗會互相蓋掉狀態 | 確認 `dsh.isolateStorage` 是開的。輸出頻道會印出它選用的代理 origin，例如 `[Proxy] 127.0.0.1:3080 → http://127.0.0.1:43123`。 |
-| 升到 0.0.10 之後狀態像被清空 | 這是預期行為，只會發生一次：頁面換到新的 origin，舊的 `http://127.0.0.1:3080` 底下那份 `localStorage` 就看不到了。 |
+---
 
-## 開發
+## 📄 授權
 
-```powershell
-pnpm install
-pnpm bundle     # esbuild → dist/extension.js
-pnpm compile    # tsc --noEmit
-pnpm lint       # eslint src
-pnpm test       # 打包 src/proxy.ts 後跑 node --test
-pnpm check      # compile + lint + test
-pnpm package    # → .vsix
-```
+本專案採用 **[MIT License](LICENSE)** 開源授權。
 
-依賴由 esbuild 包進 `dist/extension.js`，所以打包帶 `--no-dependencies`，VSIX 也不需要 `node_modules`。
+---
 
-在 VS Code 按 `F5` 會開一個 Extension Development Host（`.vscode/launch.json` 會先打包）。
-
-貢獻流程請看 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-## 狀態
-
-早期預覽。這個擴充刻意保持小：嵌入一個網址，然後閉嘴。`0.0.x` 之間介面仍可能變動，版本紀錄見 [CHANGELOG.md](CHANGELOG.md)。
-
-## 隱私
-
-DSH 不收集任何遙測，也不會自己發出網路請求。它只讀你指定的那個檔案，載入裡面寫的網址。loopback 代理只監聽 `127.0.0.1`，也只轉發到你設定的 loopback 目標；`dsh.isolateStorage: false` 可以整個關掉。
-
-## 授權
-
-[MIT](LICENSE)。
-
-## 致謝
-
-- 剪貼簿橋接是因為 VS Code 不會把剪貼簿權限轉授到第二層跨來源 iframe（[microsoft/vscode#182642](https://github.com/microsoft/vscode/issues/182642)）。
+<div align="center">
+<sub>由 <a href="https://github.com/rainfishs">rainfishs</a> 開發維護。非 DeepSeek 官方附屬專案。</sub>
+</div>

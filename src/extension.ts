@@ -123,20 +123,10 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 			return;
 		}
 
-		const raw = (vscode.workspace.getConfiguration(SECTION).get<string>(URL_FILE_SETTING) ?? "").trim();
-		if (!raw) {
-			this.stopWatching();
-			view.webview.html = this.infoPage(
-				"No URL configured",
-				`Open Settings, search for <code>${SECTION}.${URL_FILE_SETTING}</code> and point it at the text file holding your URL.<br>
-				 Example: <code>C:\\temp\\chat-url.txt</code>`,
-				"Open Settings",
-				"dsh.openSettings"
-			);
-			return;
-		}
-
-		const file = resolvePath(raw);
+		const configured = (vscode.workspace.getConfiguration(SECTION).get<string>(URL_FILE_SETTING) ?? "").trim();
+		// An empty setting is not "nothing configured": it means the file DSH itself
+		// writes, so `dsh web` plus this extension needs no setup at all.
+		const file = resolvePath(configured === "" ? defaultUrlFile() : configured);
 		this.watch(file);
 
 		let content: string;
@@ -144,10 +134,18 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 			content = fs.readFileSync(file, "utf8");
 		} catch (error) {
 			log(`read failed: ${file} (${String(error)})`);
-			view.webview.html = this.infoPage(
-				"Cannot read that file",
-				`<code>${escapeHtml(file)}</code><br>${escapeHtml(errorMessage(error))}`
-			);
+			view.webview.html = configured === ""
+				? this.infoPage(
+					"No URL configured",
+					`Nothing is there yet: <code>${escapeHtml(file)}</code>, where DSH with the bridge bundle writes its login URL.<br>
+					 Start <code>dsh web</code>, or point <code>${SECTION}.${URL_FILE_SETTING}</code> at a file of your own.`,
+					"Open Settings",
+					"dsh.openSettings"
+				)
+				: this.infoPage(
+					"Cannot read that file",
+					`<code>${escapeHtml(file)}</code><br>${escapeHtml(errorMessage(error))}`
+				);
 			return;
 		}
 
@@ -371,6 +369,17 @@ function resolvePath(file: string): string {
 	}
 	const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
 	return path.resolve(root, file);
+}
+
+/**
+ * The file the DSH Web GUI writes its login URL into when `dsh.urlFile` names none:
+ * `web-url.txt` in the Web profile directory. The rule is DSH's own — an explicit
+ * `DSH_HOME` wins, `~/.dsh` is the fallback — mirrored here so an empty setting
+ * finds the file a plain `dsh web` wrote, with no configuration at all.
+ */
+function defaultUrlFile(): string {
+	const home = process.env.DSH_HOME?.trim();
+	return path.join(home ? home : path.join(os.homedir(), ".dsh"), "profiles", "web", "web-url.txt");
 }
 
 /**

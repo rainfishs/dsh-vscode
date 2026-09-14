@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-09-15
+
+### Features
+
+- `dsh.urlFile` may be left empty: the tab then reads the file DSH itself writes, `%DSH_HOME%\profiles\web\web-url.txt` (`%USERPROFILE%\.dsh\profiles\web\web-url.txt` when `DSH_HOME` is unset), so a plain `dsh web` needs no path typed in. The panel keeps watching that file, so the tab connects by itself once DSH writes it. The `No URL configured` page now names the missing file instead of only pointing at the setting.
+
+### Documentation
+
+- The READMEs were rewritten around the DSH runtime bundle, the two-hop IPC bridge and the per-window proxy; the Traditional Chinese one mirrors the English one.
+
 ## [0.0.11] - 2026-09-15
 
 ### Features
