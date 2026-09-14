@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Problem with the DSH plugin (dsh-vscode-bridge)
+    url: https://github.com/rainfishs/dsh-vscode-bridge/issues
+    about: The URL file, the file-click hand-off and the clipboard relay live in the plugin, not in this extension.
+  - name: Problem with DeepSeek Harness itself
+    url: https://github.com/deepseek-ai/deepseek-harness/issues
+    about: The agent, the CLI and the web UI live in the DeepSeek Harness repository, not here.
+  - name: "Known VS Code limitation: clipboard permissions in nested iframes"
+    url: https://github.com/microsoft/vscode/issues/182642
+    about: This is why the clipboard bridge exists. Please do not report it as a DSH bug.

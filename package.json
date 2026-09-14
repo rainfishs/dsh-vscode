@@ -1,0 +1,138 @@
+{
+  "name": "dsh-on-vscode",
+  "displayName": "DSH on VS Code",
+  "description": "Open a URL as a tab in the VS Code chat panel. The URL comes from a text file, so you can point the tab at DeepSeek Harness (DSH) or any local web app.",
+  "version": "0.0.10",
+  "publisher": "rainfishs",
+  "author": {
+    "name": "rainfishs",
+    "url": "https://github.com/rainfishs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rainfishs/dsh-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rainfishs/dsh-vscode/issues"
+  },
+  "homepage": "https://github.com/rainfishs/dsh-vscode#readme",
+  "main": "./dist/extension.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "vscode": "^1.104.0"
+  },
+  "packageManager": "pnpm@12.4.1",
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "deepseek-harness",
+    "chat",
+    "sidebar",
+    "tab",
+    "panel",
+    "webview",
+    "iframe",
+    "url",
+    "loopback"
+  ],
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "dsh",
+          "title": "DSH",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "dsh": [
+        {
+          "type": "webview",
+          "id": "dsh.view",
+          "name": "DSH"
+        }
+      ],
+      "workbench.panel.chat": [
+        {
+          "type": "webview",
+          "id": "dsh.chatView",
+          "name": "URL"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "dsh.open",
+        "title": "Open URL Tab",
+        "category": "DSH"
+      },
+      {
+        "command": "dsh.reload",
+        "title": "Reload",
+        "category": "DSH"
+      },
+      {
+        "command": "dsh.openSettings",
+        "title": "Open Settings (URL File)",
+        "category": "DSH"
+      }
+    ],
+    "configuration": {
+      "title": "DSH",
+      "properties": {
+        "dsh.urlFile": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the text file that holds the URL. The first usable line is taken as the URL (only http / https; lines starting with # are ignored). It can be an absolute path, a workspace-relative path, or start with `~`. The tab reloads automatically whenever the file changes."
+        },
+        "dsh.zoom": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4,
+          "markdownDescription": "Zoom factor for the tab content. `1` = original size, larger than 1 zooms in, smaller than 1 zooms out (e.g. `1.5` = 150%). Applied live, without reloading the tab."
+        },
+        "dsh.isolateStorage": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Load the URL from a per-window origin so that localStorage is isolated between VS Code windows (windows no longer overwrite each other's state). Only `http` loopback URLs (`127.0.0.1` / `localhost` / `::1`) are proxied; turn this off to load directly."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "esbuild src/extension.ts --bundle --platform=node --target=node18 --external:vscode --outfile=dist/extension.js --sourcemap",
+    "bundle": "esbuild src/extension.ts --bundle --platform=node --target=node18 --external:vscode --outfile=dist/extension.js --sourcemap",
+    "compile": "tsc -p ./ --noEmit",
+    "watch": "tsc -w -p ./ --noEmit",
+    "lint": "eslint src",
+    "test": "esbuild src/proxy.ts --bundle --platform=node --format=esm --target=node18 --outfile=.test/proxy.mjs --log-level=warning && node tests/proxy.test.mjs",
+    "check": "pnpm compile && pnpm lint && pnpm test",
+    "package": "vsce package --no-dependencies",
+    "publish:marketplace": "vsce publish --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^24.x",
+    "@types/vscode": "^1.104.0",
+    "@typescript-eslint/eslint-plugin": "^8.x",
+    "@typescript-eslint/parser": "^8.x",
+    "@vscode/vsce": "^3.6.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.x",
+    "typescript": "^5.9.3"
+  }
+}

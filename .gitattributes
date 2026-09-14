@@ -1,0 +1,14 @@
+# Line endings are normalised in the repository (LF); the working tree follows
+# the platform's core.autocrlf setting.
+* text=auto
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.vsix binary
+
+# Generated files: keep them out of diffs and language statistics.
+pnpm-lock.yaml linguist-generated=true
+dist/** linguist-generated=true

@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bundle",
+      "type": "shell",
+      "command": "pnpm bundle",
+      "problemMatcher": "$tsc",
+      "presentation": {
+        "reveal": "silent",
+        "clear": true
+      }
+    },
+    {
+      "label": "check",
+      "type": "shell",
+      "command": "pnpm check",
+      "problemMatcher": ["$tsc", "$eslint-stylish"],
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      }
+    }
+  ]
+}
