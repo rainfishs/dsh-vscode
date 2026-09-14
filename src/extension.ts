@@ -83,10 +83,19 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 			enableScripts: true,
 			enableCommandUris: true
 		};
-		// A copy request forwarded by the middle-layer webview -> write it with the native VS Code API
-		// (the write happens in the extension host, so iframe cross-origin permissions do not apply)
-		view.webview.onDidReceiveMessage((message: { type?: unknown; text?: unknown }) => {
-			if (!message || message.type !== "copy" || typeof message.text !== "string" || !message.text) {
+		// Requests forwarded by the middle-layer webview.
+		// (1) A file open: the page inside the iframe clicked a file and VS Code should show it.
+		// (2) A copy request: write it with the native VS Code API (the write happens in the
+		// extension host, so iframe cross-origin permissions do not apply).
+		view.webview.onDidReceiveMessage((message: { type?: unknown; text?: unknown; path?: unknown; line?: unknown }) => {
+			if (!message || typeof message !== "object") {
+				return;
+			}
+			if (message.type === "open-file" && typeof message.path === "string") {
+				void handleOpenFile(message.path, typeof message.line === "number" ? message.line : undefined);
+				return;
+			}
+			if (message.type !== "copy" || typeof message.text !== "string" || !message.text) {
 				return;
 			}
 			const text = message.text;
@@ -227,6 +236,14 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 		// (2) copy request sent by the page inside the iframe (DSH) -> forward it to the outer extension
 		if (data.type === "copy" && typeof data.text === "string" && data.text.length > 0) {
 			vscode.postMessage({ type: "copy", text: data.text });
+			return;
+		}
+		// (3) file open clicked in that page -> forward it too, so the file lands in an editor
+		// instead of the page's own preview. The page has already resolved the path it sends.
+		// Only the embedded page itself may ask this: a frame nested inside it is a
+		// different page and has no say here.
+		if (data.type === "open-file" && typeof data.path === "string" && event.source === frame.contentWindow) {
+			vscode.postMessage({ type: "open-file", path: data.path, line: data.line });
 		}
 	});
 </script>
@@ -354,6 +371,39 @@ function resolvePath(file: string): string {
 	}
 	const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir();
 	return path.resolve(root, file);
+}
+
+/**
+ * Open the file a click in the embedded page named, landing on the line it carried.
+ *
+ * The DSH half (`dsh-vscode-bridge`) resolves the address it was given before it
+ * posts, so what arrives is already a host-absolute path with `/` separators —
+ * `C:/work/notes.md` on Windows. Anything else is not a hand-off this panel can
+ * act on, so it is logged and dropped rather than guessed at.
+ * @param file - the absolute path the page resolved.
+ * @param line - 1-based line to land on, when the click carried one.
+ */
+async function handleOpenFile(file: string, line?: number): Promise<void> {
+	if (!path.isAbsolute(file)) {
+		log(`[OpenFile] not an absolute path, ignored: ${file}`);
+		return;
+	}
+	try {
+		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+		// A line number from an older view of the file must not throw, so it is clamped.
+		const requested = typeof line === "number" && Number.isInteger(line) && line >= 1 ? line : 0;
+		const row = requested === 0 ? 0 : Math.min(requested - 1, document.lineCount - 1);
+		const position = new vscode.Position(row, 0);
+		const range = new vscode.Range(position, position);
+		// No viewColumn and no preview flag: how an open lands is this editor's own
+		// business (`window.revealIfOpen`, `workbench.editor.enablePreview`, ...).
+		const editor = await vscode.window.showTextDocument(document, { selection: range });
+		editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+		log(`[OpenFile] opened ${file}${requested === 0 ? "" : `:${requested}`}`);
+	} catch (error) {
+		log(`[OpenFile] could not open ${file}: ${String(error)}`);
+		void vscode.window.showErrorMessage(`DSH cannot open ${file} (${errorMessage(error)})`);
+	}
 }
 
 /** Take the first meaningful line as the URL (skipping the BOM, blank lines, # comments and wrapping quotes or angle brackets) */

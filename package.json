@@ -2,7 +2,7 @@
   "name": "dsh-on-vscode",
   "displayName": "DSH on VS Code",
   "description": "Open a URL as a tab in the VS Code chat panel. The URL comes from a text file, so you can point the tab at DeepSeek Harness (DSH) or any local web app.",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "publisher": "rainfishs",
   "author": {
     "name": "rainfishs",
