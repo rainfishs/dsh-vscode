@@ -17,6 +17,12 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/sidebar.jpg" alt="DSH 在 VS Code 次要側邊欄中運行" width="100%">
+</p>
+
+---
+
 **DSH on VS Code** 將 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 的 Web 介面無縫嵌入至 VS Code 聊天面板。
 
 專案採用**輕量解耦架構**：不鎖死外部進程、不依賴 stdout 輸出爬取，透過雙向 IPC 解決 Webview 沙盒限制，讓 DSH 順暢融入你的日常開發流程。
@@ -90,10 +96,10 @@ code --install-extension rainfishs.dsh-on-vscode
    dsh web
    ```
    *（Bridge 會自動將登入 URL 寫入 `%USERPROFILE%\.dsh\profiles\web\web-url.txt`）*
-2. 在 VS Code 中按下 `Ctrl+Shift+P`（macOS 為 `Cmd+Shift+P`）開啟命令面板，執行：
-   ```text
-   DSH: Open URL Tab
-   ```
+2. 開啟面板，兩種方式都可以：
+
+   - **UI 操作：** `Ctrl+Alt+B`（macOS：`Cmd+Option+B`）→ 點擊次要側邊欄的 **DSH** 圖示
+   - **命令面板：** `Ctrl+Shift+P`（macOS：`Cmd+Shift+P`）→ 執行 **DSH: Open URL Tab**
 
 ---
 

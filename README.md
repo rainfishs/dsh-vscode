@@ -17,6 +17,12 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/sidebar.jpg" alt="DSH running in the VS Code Secondary Sidebar" width="100%">
+</p>
+
+---
+
 **DSH on VS Code** brings the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) web interface directly into your editor's chat panel.
 
 Built with a **lightweight, decoupled architecture**, it avoids process locking and fragile stdout scraping, providing a clean bidirectional bridge between DSH and your VS Code workspace.
@@ -90,10 +96,10 @@ code --install-extension rainfishs.dsh-on-vscode
    dsh web
    ```
    *(The bridge automatically writes the authenticated session URL to `%USERPROFILE%\.dsh\profiles\web\web-url.txt`)*
-2. In VS Code, open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run:
-   ```text
-   DSH: Open URL Tab
-   ```
+2. Open the panel — either route works:
+
+   - **UI:** `Ctrl+Alt+B` (macOS: `Cmd+Option+B`) → click the **DSH** icon in the Secondary Side Bar
+   - **Command Palette:** `Ctrl+Shift+P` (macOS: `Cmd+Shift+P`) → run **DSH: Open URL Tab**
 
 ---
 

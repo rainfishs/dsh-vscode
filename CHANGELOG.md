@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-09-15
+
+### Documentation
+
+- The Quick Start now opens the panel by shortcut first — `Ctrl+Alt+B` (`Cmd+Option+B` on macOS) shows the Secondary Side Bar, whose **DSH** icon opens the panel — with the `DSH: Open URL Tab` command palette route listed alongside it, so no command name has to be typed.
+- A screenshot of the panel in the Secondary Side Bar is embedded at the top of both READMEs. `docs/**` stays out of the package, so the extension page resolves the image from the GitHub repository.
+
 ## [0.0.12] - 2026-09-15
 
 ### Features
