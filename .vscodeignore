@@ -23,6 +23,7 @@ CONTRIBUTING.md
 CODE_OF_CONDUCT.md
 SECURITY.md
 AGENT_NOTES.md
+HANDOFF-*.md
 
 # Local scratch and backups — never published.
 .local-*/

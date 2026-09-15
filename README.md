@@ -72,7 +72,7 @@ Instead of rigid sub-process binding or fragile stdout scraping, DSH on VS Code 
 | :--- | :--- | :--- |
 | **VS Code** | `^1.104.0` | Host Editor |
 | **DeepSeek Harness** | `latest` (`@deepseek-ai/dsh`) | AI Harness Core |
-| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `latest` | DSH Cordis Runtime Bundle |
+| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `0.2.4+` | DSH Cordis Runtime Bundle |
 
 ---
 

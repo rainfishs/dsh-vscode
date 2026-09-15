@@ -87,12 +87,16 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 		// (1) A file open: the page inside the iframe clicked a file and VS Code should show it.
 		// (2) A copy request: write it with the native VS Code API (the write happens in the
 		// extension host, so iframe cross-origin permissions do not apply).
-		view.webview.onDidReceiveMessage((message: { type?: unknown; text?: unknown; path?: unknown; line?: unknown }) => {
+		view.webview.onDidReceiveMessage((message: { type?: unknown; text?: unknown; path?: unknown; line?: unknown; url?: unknown }) => {
 			if (!message || typeof message !== "object") {
 				return;
 			}
 			if (message.type === "open-file" && typeof message.path === "string") {
 				void handleOpenFile(message.path, typeof message.line === "number" ? message.line : undefined);
+				return;
+			}
+			if (message.type === "open-link" && typeof message.url === "string") {
+				void handleOpenLink(message.url);
 				return;
 			}
 			if (message.type !== "copy" || typeof message.text !== "string" || !message.text) {
@@ -242,6 +246,13 @@ class UrlTabProvider implements vscode.WebviewViewProvider, vscode.Disposable {
 		// different page and has no say here.
 		if (data.type === "open-file" && typeof data.path === "string" && event.source === frame.contentWindow) {
 			vscode.postMessage({ type: "open-file", path: data.path, line: data.line });
+			return;
+		}
+		// (4) an external link. The DSH half posts it to this page, which relays
+		// it to the extension; only the embedded page itself may ask, so a frame
+		// nested inside it has no say here.
+		if (data.type === "open-link" && typeof data.url === "string" && event.source === frame.contentWindow) {
+			vscode.postMessage({ type: "open-link", url: data.url });
 		}
 	});
 </script>
@@ -437,6 +448,53 @@ function parseUrl(content: string): string | undefined {
 	}
 }
 
+/*
+ * ── External links ──────────────────────────────────────────────────────────
+ *
+ * A link clicked inside the embedded page reaches this host the same way a copy
+ * and a file open do: the DSH half (`dsh-vscode-bridge`) posts the address to
+ * the page that embeds the GUI, that page relays it here, and the extension
+ * raises VS Code's own confirmation before the OS browser takes the address.
+ */
+
+/**
+ * Open the external link a click in the embedded page asked for.
+ *
+ * No prompt of our own: `vscode.env.openExternal` is the only extension-side
+ * door to the OS browser, and VS Code's own "Do you want ... to open the
+ * external website?" dialog comes with it (measured 2026-09-15). A domain on
+ * VS Code's default trusted list — `*.github.com`, `*.microsoft.com`, loopback
+ * and friends, see the product's `linkProtectionTrustedDomains` — opens without
+ * that dialog, exactly as it does anywhere else in the editor.
+ *
+ * Anything that is not an absolute http(s) URL is not a hand-off this panel
+ * acts on, so it is logged and dropped rather than guessed at.
+ * @param url - the address the page asked to open.
+ */
+async function handleOpenLink(url: string): Promise<void> {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		log(`[OpenLink] not a URL, ignored: ${url}`);
+		return;
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		log(`[OpenLink] only http(s) is handed over, ignored: ${url}`);
+		return;
+	}
+	const address = parsed.toString();
+	log(`[OpenLink] opening ${address}`);
+	try {
+		const opened = await vscode.env.openExternal(vscode.Uri.parse(address));
+		log(`[OpenLink] openExternal returned ${String(opened)}`);
+	} catch (error) {
+		log(`[OpenLink] could not open ${address}: ${String(error)}`);
+		void vscode.window.showErrorMessage(`DSH cannot open ${address} (${errorMessage(error)})`);
+	}
+}
+
+/** Turn an unknown error into a line for a message box. */
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }

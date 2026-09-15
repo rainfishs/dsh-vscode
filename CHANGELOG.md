@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-09-15
+
+### Features
+
+- A link clicked inside the embedded page opens through VS Code's own confirmation. The [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) browser half posts the clicked address to the page that embeds the GUI, the panel relays it to the extension, and `vscode.env.openExternal` raises VS Code's "Do you want Code to open the external website?" dialog before the system browser takes the address. A domain on VS Code's own trusted list (`*.github.com`, `*.microsoft.com`, loopback and the rest of `linkProtectionTrustedDomains`) opens without that dialog, exactly as it does elsewhere in the editor; a page standing alone keeps its own handling.
+
+### Compatibility
+
+- Pairs with [`dsh-vscode-bridge`](https://github.com/rainfishs/dsh-vscode-bridge) **0.2.4** or newer: that release is the browser half which posts a clicked external link. An older bundle leaves the file open and clipboard bridges exactly as they were, and external links keep whatever the page did with them before.
+
 ## [0.0.13] - 2026-09-15
 
 ### Documentation

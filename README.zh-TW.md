@@ -72,7 +72,7 @@
 | :--- | :--- | :--- |
 | **VS Code** | `^1.104.0` | 宿主編輯器 |
 | **DeepSeek Harness** | `latest`（`@deepseek-ai/dsh`） | DSH 核心套件 |
-| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `latest` | DSH 端 Cordis 執行期外掛 |
+| **[dsh-vscode-bridge](https://github.com/rainfishs/dsh-vscode-bridge)** | `0.2.4+` | DSH 端 Cordis 執行期外掛 |
 
 ---
 
