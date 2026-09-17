@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-09-17
+
+### Fixes
+
+- The duplicate **URL** view is gone. The extension no longer contributes a view to the built-in `workbench.panel.chat` container: on the builds where that container does not accept third-party views it showed up as a stray **URL** entry beside Outline and Timeline. The **DSH** panel in the Secondary Side Bar is now the only view, and the second webview provider that existed only for the duplicate was removed with it.
+
 ## [0.0.14] - 2026-09-15
 
 ### Features

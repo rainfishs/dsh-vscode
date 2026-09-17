@@ -9,11 +9,6 @@ import { isLoopbackHostname, LoopbackProxy } from "./proxy";
  * Registered under our own container in the secondary sidebar (a standard VS Code API, always available).
  */
 const VIEW_ID = "dsh.view";
-/**
- * Extra attempt: register into the chat container, which on some builds shows up as a tab next to Chat.
- * If a newer VS Code blocks it, that only leaves one warning in the log and does not affect the view above.
- */
-const CHAT_VIEW_ID = "dsh.chatView";
 const SECTION = "dsh";
 const URL_FILE_SETTING = "urlFile";
 const ZOOM_SETTING = "zoom";
@@ -27,9 +22,9 @@ function log(message: string): void {
 
 export function activate(context: vscode.ExtensionContext): void {
 	output = vscode.window.createOutputChannel("DSH");
-	// One proxy per window (= per extension host); both panels share it, so they share one origin
+	// One proxy per window (= per extension host); the panel uses it, so its origin is window-specific
 	const scope = new WindowScope(log);
-	const providers = [new UrlTabProvider(scope), new UrlTabProvider(scope)];
+	const providers = [new UrlTabProvider(scope)];
 
 	const reloadAll = () => providers.forEach((provider) => provider.reload());
 
@@ -38,9 +33,6 @@ export function activate(context: vscode.ExtensionContext): void {
 		scope,
 		...providers,
 		vscode.window.registerWebviewViewProvider(VIEW_ID, providers[0], {
-			webviewOptions: { retainContextWhenHidden: true },
-		}),
-		vscode.window.registerWebviewViewProvider(CHAT_VIEW_ID, providers[1], {
 			webviewOptions: { retainContextWhenHidden: true },
 		}),
 		vscode.commands.registerCommand("dsh.open", () =>

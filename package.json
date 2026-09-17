@@ -2,7 +2,7 @@
   "name": "dsh-on-vscode",
   "displayName": "DSH on VS Code",
   "description": "Seamless, low-overhead DeepSeek Harness (DSH) integration for VS Code with bidirectional IPC, native file navigation, and isolated storage.",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "publisher": "rainfishs",
   "author": {
     "name": "rainfishs",
@@ -64,13 +64,6 @@
           "type": "webview",
           "id": "dsh.view",
           "name": "DSH"
-        }
-      ],
-      "workbench.panel.chat": [
-        {
-          "type": "webview",
-          "id": "dsh.chatView",
-          "name": "URL"
         }
       ]
     },
